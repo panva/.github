@@ -1,0 +1,51 @@
+name: Get LE Certificate
+
+on:
+  workflow_call:
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+    inputs:
+      subdomain:
+        required: true
+        type: string
+    outputs:
+      cache-key:
+        value: ${{ jobs.cert.outputs.cache-key }}
+
+jobs:
+  cert:
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.value }}
+    steps:
+      - name: Environment Information
+        run: npx envinfo
+      - id: cache-key
+        run: echo "value=letsencrypt-$(date +"%Y%m")" >> $GITHUB_OUTPUT
+      - name: Cache letsencrypt
+        uses: actions/cache@v3
+        id: cert
+        with:
+          path: letsencrypt
+          key: ${{ steps.cache-key.outputs.value }}
+      - name: Get test certificate
+        if: ${{ steps.cert.outputs.cache-hit != 'true' }}
+        run: |
+          sudo snap install core
+          sudo snap refresh core
+          sudo snap install --classic certbot
+          sudo snap set certbot trust-plugin-with-root=ok
+          sudo snap install certbot-dns-route53
+          certbot certonly -n -m 'panva.ip@gmail.com' \
+            --agree-tos \
+            --dns-route53 \
+            --config-dir 'letsencrypt/config' \
+            --work-dir 'letsencrypt/work' \
+            --logs-dir 'letsencrypt/logs' \
+            -d ${{ inputs.subdomain }}.panva.me
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
