@@ -12,8 +12,6 @@ jobs:
     outputs:
       cache-key: ${{ steps.cache-key.outputs.value }}
     steps:
-      - name: Environment Information
-        run: npx envinfo
       - name: Set Conformance Suite Version
         run: echo "VERSION=$(curl --silent "https://gitlab.com/api/v4/projects/4175605/releases" | jq -r '.[0].tag_name')" >> $GITHUB_ENV
       - id: cache-key

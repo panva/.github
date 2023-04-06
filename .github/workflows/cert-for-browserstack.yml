@@ -21,8 +21,6 @@ jobs:
     outputs:
       cache-key: ${{ steps.cache-key.outputs.value }}
     steps:
-      - name: Environment Information
-        run: npx envinfo
       - id: cache-key
         run: echo "value=letsencrypt-$(date +"%Y%m")" >> $GITHUB_OUTPUT
       - name: Cache letsencrypt
