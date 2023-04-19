@@ -20,5 +20,6 @@
   "timezone": "Europe/Prague",
   "schedule": [
     "after 10am every thursday"
-  ]
+  ],
+  "rangeStrategy": "bump"
 }
