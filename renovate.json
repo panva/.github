@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base"
+  ],
+  "packageRules": [
+    {
+      "excludePackagePatterns": [
+        "typescript",
+        "typedoc*"
+      ],
+      "matchPackagePatterns": ["*"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch"
+    }
+  ],
+  "timezone": "Europe/Prague",
+  "schedule": [
+    "after 10am every thursday"
+  ]
+}
