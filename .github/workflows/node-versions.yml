@@ -1,0 +1,24 @@
+name: Get LE Certificate
+
+on:
+  workflow_call:
+    inputs:
+      min:
+        required: true
+        type: number
+    outputs:
+      matrix:
+        value: ${{ jobs.node-versions.outputs.matrix }}
+
+jobs:
+  node-versions:
+    name: Get Node.js Versions
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.query.outputs.matrix }}
+    steps:
+      - id: query
+        run: |
+          wget -q https://raw.githubusercontent.com/actions/node-versions/refs/heads/main/versions-manifest.json
+          matrix=$(jq -c '[.[] | select(.lts) | select(.version | split(".")[0] | tonumber >= ${{ inputs.min }}) | .lts | ascii_downcase | "lts/\(.)"] + ["current"] | unique' versions-manifest.json)
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
