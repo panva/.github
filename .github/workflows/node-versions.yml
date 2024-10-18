@@ -1,4 +1,4 @@
-name: Get LE Certificate
+name: Get Node.js Versions
 
 on:
   workflow_call:
