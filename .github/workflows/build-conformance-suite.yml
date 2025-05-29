@@ -34,6 +34,7 @@ jobs:
       - name: Conformance Suite Build
         if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         env:
+          COMPOSE_BAKE: true
           MAVEN_CACHE: ./m2
         working-directory: ./conformance-suite
         run: |
