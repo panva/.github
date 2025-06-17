@@ -1,5 +1,7 @@
 name: Get Node.js Versions
 
+permissions: {}
+
 on:
   workflow_call:
     inputs:
