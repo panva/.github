@@ -39,8 +39,8 @@ jobs:
                     else ("lts/" + ($v.lts | ascii_downcase))
                     end
                 )
-              | . + ["current"]
               | unique
+              | . + ["current"]
             ' \
             versions-manifest.json)
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
