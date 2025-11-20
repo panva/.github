@@ -22,5 +22,25 @@ jobs:
       - id: query
         run: |
           wget -q https://raw.githubusercontent.com/actions/node-versions/refs/heads/main/versions-manifest.json
-          matrix=$(jq -c '[.[] | select(.lts) | select(.version | split(".")[0] | tonumber >= ${{ inputs.min }}) | .lts | ascii_downcase | "lts/\(.)"] + ["current"] | unique' versions-manifest.json)
+          wget -q https://raw.githubusercontent.com/nodejs/Release/main/schedule.json
+          matrix=$(jq -c \
+            --arg now "$(date -u +%Y-%m-%d)" \
+            --slurpfile schedule schedule.json \
+            '
+              [.[] | select(.lts) | select(.version | split(".")[0] | tonumber >= ${{ inputs.min }})]
+              | group_by(.version | split(".")[0])
+              | map(.[0])
+              | map(.version |= split(".")[0])
+              | map(
+                  . as $v
+                  | $schedule[0]["v" + $v.version] as $s
+                  | if ($s.end and $s.end < $now)
+                    then $v.version
+                    else ("lts/" + ($v.lts | ascii_downcase))
+                    end
+                )
+              | . + ["current"]
+              | unique
+            ' \
+            versions-manifest.json)
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
