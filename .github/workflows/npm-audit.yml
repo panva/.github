@@ -1,6 +1,7 @@
 name: Audit NPM Dependencies
 
-permissions: {}
+permissions:
+  contents: read
 
 on:
   workflow_call:
