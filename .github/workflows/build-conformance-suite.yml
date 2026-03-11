@@ -38,9 +38,9 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -n "${{ inputs.version }}" ]; then
             LATEST=$(curl --silent "https://gitlab.com/api/v4/projects/4175605/releases" | jq -r '.[0].tag_name')
-            echo "::notice::Conformance Suite version overridden to ${{ inputs.version }}"
+            echo "Version: **${{ inputs.version }}** (override)" >> $GITHUB_STEP_SUMMARY
             if [ "${{ inputs.version }}" != "$LATEST" ]; then
-              echo "::notice::Latest available version is $LATEST"
+              echo "Latest Available: **$LATEST**" >> $GITHUB_STEP_SUMMARY
             fi
           else
             echo "Version: **${{ env.VERSION }}**" >> $GITHUB_STEP_SUMMARY
