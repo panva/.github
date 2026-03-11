@@ -4,6 +4,10 @@ permissions: {}
 
 on:
   workflow_call:
+    inputs:
+      version:
+        required: false
+        type: string
     outputs:
       cache-key:
         value: ${{ jobs.build.outputs.cache-key }}
@@ -15,7 +19,12 @@ jobs:
       cache-key: ${{ steps.cache-key.outputs.value }}
     steps:
       - name: Set Conformance Suite Version
-        run: echo "VERSION=$(curl --silent "https://gitlab.com/api/v4/projects/4175605/releases" | jq -r '.[0].tag_name')" >> $GITHUB_ENV
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            echo "VERSION=${{ inputs.version }}" >> $GITHUB_ENV
+          else
+            echo "VERSION=$(curl --silent "https://gitlab.com/api/v4/projects/4175605/releases" | jq -r '.[0].tag_name')" >> $GITHUB_ENV
+          fi
       - id: cache-key
         run: echo "value=suite-${{ env.VERSION }}" >> $GITHUB_OUTPUT
       - name: Load Cached Conformance Suite Build
