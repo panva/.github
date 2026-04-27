@@ -1,0 +1,66 @@
+name: Conformance Suite
+description: Start the OpenID Foundation Conformance Suite and clean it up automatically.
+
+inputs:
+  version-override:
+    description: Optional Conformance Suite release tag override.
+    required: false
+
+outputs:
+  version:
+    description: Resolved Conformance Suite release tag.
+    value: ${{ steps.version.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve Conformance Suite Version
+      id: version
+      shell: bash
+      env:
+        VERSION_OVERRIDE: ${{ inputs.version-override }}
+      run: node "$GITHUB_ACTION_PATH/resolve.js"
+
+    - name: Restore Docker image cache
+      id: image-cache
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ runner.temp }}/conformance-suite-images
+        key: conformance-suite-images-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.version }}
+
+    - name: Load Docker images
+      if: ${{ steps.image-cache.outputs.cache-hit == 'true' }}
+      shell: bash
+      run: docker load --input "${{ runner.temp }}/conformance-suite-images/images.tar"
+
+    - name: Link start action
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: ln -sfn "$ACTION_PATH/start" .conformance-suite-start-action
+
+    - name: Start Conformance Suite
+      uses: ./.conformance-suite-start-action
+      with:
+        version: ${{ steps.version.outputs.version }}
+
+    - name: Create Docker image cache archive
+      if: ${{ steps.image-cache.outputs.cache-hit != 'true' }}
+      shell: bash
+      run: |
+        mkdir -p "${{ runner.temp }}/conformance-suite-images"
+        mapfile -t images < <(docker compose -f conformance-suite/docker-compose-prebuilt.yml -f conformance-suite/docker-compose-prebuilt.override.yml config --images | sort -u)
+        if [ "${#images[@]}" -eq 0 ]; then
+          echo "::error::No Conformance Suite Docker images resolved"
+          exit 1
+        fi
+        printf '%s\n' "${images[@]}" > "${{ runner.temp }}/conformance-suite-images/images.txt"
+        docker save --output "${{ runner.temp }}/conformance-suite-images/images.tar" "${images[@]}"
+
+    - name: Save Docker image cache
+      if: ${{ steps.image-cache.outputs.cache-hit != 'true' }}
+      continue-on-error: true
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: ${{ runner.temp }}/conformance-suite-images
+        key: conformance-suite-images-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.version }}
