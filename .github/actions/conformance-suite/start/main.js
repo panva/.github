@@ -22,23 +22,11 @@ await run('curl', [
 await writeFile(
   overrideFile,
   `services:
-  mongodb:
-    pull_policy: missing
   nginx:
-    pull_policy: missing
     networks:
       default:
         aliases:
           - localhost.emobix.co.uk
-  server:
-    pull_policy: missing
-    environment:
-      SPRING_PROFILES_ACTIVE: "dev"
-      JAVA_EXTRA_ARGS: ""
-      OIDC_GOOGLE_CLIENTID: \${OIDC_GOOGLE_CLIENTID:-google-client}
-      OIDC_GOOGLE_SECRET: \${OIDC_GOOGLE_SECRET:-google-secret}
-      OIDC_GITLAB_CLIENTID: \${OIDC_GITLAB_CLIENTID:-gitlab-client}
-      OIDC_GITLAB_SECRET: \${OIDC_GITLAB_SECRET:-gitlab-secret}
 `,
 );
 
