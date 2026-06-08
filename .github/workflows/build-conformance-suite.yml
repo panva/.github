@@ -59,4 +59,5 @@ jobs:
         run: |
           sed -i -e 's/localhost/localhost.emobix.co.uk/g' src/main/resources/application.properties
           sed -i -e 's/-B clean/-B -DskipTests=true/g' builder-compose.yml
+          sed -i -e 's/temurin-17/temurin-21/g' builder-compose.yml
           docker compose -f builder-compose.yml run builder
