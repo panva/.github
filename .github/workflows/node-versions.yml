@@ -27,7 +27,9 @@ jobs:
             --arg now "$(date -u +%Y-%m-%d)" \
             --slurpfile schedule schedule.json \
             '
-              [.[] | select(.lts) | select(.version | split(".")[0] | tonumber >= ${{ inputs.min }})]
+              . as $versions
+              | ($versions | max_by(.version | split(".") | map(tonumber))) as $latest
+              | [$versions[] | select(.lts) | select(.version | split(".")[0] | tonumber >= ${{ inputs.min }})]
               | group_by(.version | split(".")[0])
               | map(.[0])
               | map(.version |= split(".")[0])
@@ -40,7 +42,7 @@ jobs:
                     end
                 )
               | unique
-              | . + ["current"]
+              | if $latest.lts then . else . + ["current"] end
             ' \
             versions-manifest.json)
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
