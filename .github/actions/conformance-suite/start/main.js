@@ -1,5 +1,5 @@
-import { appendFile, mkdir, writeFile } from 'node:fs/promises';
-import { composeArgs, composeFile, overrideFile, run, suiteDir } from './common.js';
+import { appendFile, mkdir } from 'node:fs/promises';
+import { composeArgs, composeFile, run, suiteDir } from './common.js';
 
 const suiteBaseUrl = 'https://localhost.emobix.co.uk:8443';
 const version = getInput('version');
@@ -19,16 +19,6 @@ await run('curl', [
   composeFile,
   `https://gitlab.com/openid/conformance-suite/-/raw/${version}/docker-compose-prebuilt.yml`,
 ]);
-await writeFile(
-  overrideFile,
-  `services:
-  nginx:
-    networks:
-      default:
-        aliases:
-          - localhost.emobix.co.uk
-`,
-);
 
 await run('docker', [...composeArgs, 'up', '-d', '--pull', 'missing']);
 

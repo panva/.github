@@ -4,9 +4,8 @@ import { join } from 'node:path';
 export const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
 export const suiteDir = join(workspace, 'conformance-suite');
 export const composeFile = join(suiteDir, 'docker-compose-prebuilt.yml');
-export const overrideFile = join(suiteDir, 'docker-compose-prebuilt.override.yml');
 export const mongoDir = join(suiteDir, 'mongo');
-export const composeArgs = ['compose', '-f', composeFile, '-f', overrideFile];
+export const composeArgs = ['compose', '-f', composeFile];
 
 export function run(command, args, options = {}) {
   const { reject = true, stdio = 'inherit' } = options;

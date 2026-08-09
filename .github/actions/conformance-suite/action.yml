@@ -49,7 +49,7 @@ runs:
       shell: bash
       run: |
         mkdir -p "${{ runner.temp }}/conformance-suite-images"
-        mapfile -t images < <(docker compose -f conformance-suite/docker-compose-prebuilt.yml -f conformance-suite/docker-compose-prebuilt.override.yml config --images | sort -u)
+        mapfile -t images < <(docker compose -f conformance-suite/docker-compose-prebuilt.yml config --images | sort -u)
         if [ "${#images[@]}" -eq 0 ]; then
           echo "::error::No Conformance Suite Docker images resolved"
           exit 1
