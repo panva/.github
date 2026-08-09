@@ -1,0 +1,311 @@
+name: Release npm package
+
+permissions: {}
+
+on:
+  workflow_call:
+    inputs:
+      package_directory:
+        description: Directory passed to npm pack
+        required: false
+        type: string
+        default: .
+      manifest_directory:
+        description: Directory containing the source package.json
+        required: false
+        type: string
+        default: .
+      prepare_command:
+        description: Project-specific command run before packing
+        required: false
+        type: string
+        default: ""
+      artifact_check_command:
+        description: Project-specific command run against PACKAGE_TARBALL
+        required: false
+        type: string
+        default: ""
+      cleanup_paths:
+        description: JSON array of release-only paths to remove from main
+        required: false
+        type: string
+        default: "[]"
+      maintenance_branch:
+        description: Update the v<major>.x maintenance branch
+        required: false
+        type: boolean
+        default: true
+      publish_jsr:
+        description: Publish the checked-out package to JSR after npm is available
+        required: false
+        type: boolean
+        default: false
+      github_release:
+        description: Create a discussion-backed GitHub Release with the package artifact
+        required: false
+        type: boolean
+        default: true
+      tagged_release:
+        description: Require a version tag and integrate it into release branches
+        required: false
+        type: boolean
+        default: true
+      changelog_path:
+        description: Changelog used for GitHub Release notes
+        required: false
+        type: string
+        default: CHANGELOG.md
+
+jobs:
+  preflight:
+    if: ${{ github.repository_owner == 'panva' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Checkout release implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: node_modules/.panva-release
+      - name: Validate release configuration
+        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        with:
+          operation: preflight
+          manifest_directory: ${{ inputs.manifest_directory }}
+          require_tag: ${{ inputs.tagged_release }}
+          cleanup_paths: ${{ inputs.cleanup_paths }}
+          maintenance_branch: ${{ inputs.maintenance_branch }}
+          publish_jsr: ${{ inputs.publish_jsr }}
+          github_release: ${{ inputs.github_release }}
+          changelog_path: ${{ inputs.changelog_path }}
+
+  package:
+    needs:
+      - preflight
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Setup node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: lts/*
+      - name: Prepare package
+        if: ${{ inputs.prepare_command != '' }}
+        env:
+          PREPARE_COMMAND: ${{ inputs.prepare_command }}
+        run: bash -eo pipefail -c "$PREPARE_COMMAND"
+      - name: Pack once
+        id: pack
+        env:
+          PACKAGE_DIRECTORY: ${{ inputs.package_directory }}
+        run: |
+          npm pack "$PACKAGE_DIRECTORY" --pack-destination "$RUNNER_TEMP"
+          shopt -s nullglob
+          tarballs=("$RUNNER_TEMP"/*.tgz)
+          if [ "${#tarballs[@]}" -ne 1 ]; then
+            echo "expected one package tarball, found ${#tarballs[@]}" >&2
+            exit 1
+          fi
+          echo "tarball=${tarballs[0]}" >> "$GITHUB_OUTPUT"
+      - name: Project package checks
+        if: ${{ inputs.artifact_check_command != '' }}
+        env:
+          ARTIFACT_CHECK_COMMAND: ${{ inputs.artifact_check_command }}
+          PACKAGE_TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: bash -eo pipefail -c "$ARTIFACT_CHECK_COMMAND"
+      - name: Checkout release implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: node_modules/.panva-release
+      - name: Validate exact package artifact
+        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        with:
+          operation: validate
+          tarball: ${{ steps.pack.outputs.tarball }}
+          manifest_directory: ${{ inputs.manifest_directory }}
+          require_tag: ${{ inputs.tagged_release }}
+      - name: Upload package artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: npm-package
+          path: ${{ steps.pack.outputs.tarball }}
+          if-no-files-found: error
+
+  npm:
+    needs:
+      - package
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Checkout release implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: node_modules/.panva-release
+      - name: Verify release tag
+        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        with:
+          operation: verify-tag
+          manifest_directory: ${{ inputs.manifest_directory }}
+          require_tag: ${{ inputs.tagged_release }}
+      - name: Setup node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: lts/*
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g --ignore-scripts npm@12.0.2
+      - name: Download package artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: npm-package
+          path: ${{ runner.temp }}/package
+      - name: Locate package artifact
+        id: package
+        run: |
+          shopt -s nullglob
+          tarballs=("$RUNNER_TEMP/package"/*.tgz)
+          if [ "${#tarballs[@]}" -ne 1 ]; then
+            echo "expected one package tarball, found ${#tarballs[@]}" >&2
+            exit 1
+          fi
+          echo "tarball=${tarballs[0]}" >> "$GITHUB_OUTPUT"
+      - name: Stage exact package artifact
+        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        with:
+          operation: stage
+          tarball: ${{ steps.package.outputs.tarball }}
+          manifest_directory: ${{ inputs.manifest_directory }}
+          require_tag: ${{ inputs.tagged_release }}
+
+  wait:
+    needs:
+      - npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 65
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Checkout release implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: node_modules/.panva-release
+      - name: Wait for npm availability
+        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        with:
+          operation: wait
+          manifest_directory: ${{ inputs.manifest_directory }}
+          require_tag: ${{ inputs.tagged_release }}
+
+  jsr:
+    if: ${{ inputs.publish_jsr }}
+    needs:
+      - wait
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Checkout release implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: node_modules/.panva-release
+      - name: Verify release tag
+        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        with:
+          operation: verify-tag
+          manifest_directory: ${{ inputs.manifest_directory }}
+          require_tag: ${{ inputs.tagged_release }}
+      - run: npx --yes jsr@0.14.3 publish
+
+  integrate:
+    if: >-
+      ${{ inputs.tagged_release && !cancelled() && needs.wait.result == 'success' &&
+          (needs.jsr.result == 'success' || needs.jsr.result == 'skipped') }}
+    needs:
+      - wait
+      - jsr
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Checkout release implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: node_modules/.panva-release
+      - name: Integrate release branches
+        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        with:
+          operation: integrate
+          cleanup_paths: ${{ inputs.cleanup_paths }}
+          maintenance_branch: ${{ inputs.maintenance_branch }}
+
+  github:
+    if: ${{ inputs.tagged_release && inputs.github_release }}
+    needs:
+      - integrate
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+      discussions: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Download package artifact
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: npm-package
+          path: ${{ runner.temp }}/package
+      - name: Checkout release implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: node_modules/.panva-release
+      - name: Create GitHub Release
+        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          operation: github-release
+          asset_directory: ${{ runner.temp }}/package
+          changelog_path: ${{ inputs.changelog_path }}

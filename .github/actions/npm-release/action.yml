@@ -1,0 +1,49 @@
+name: npm release operation
+description: Shared implementation details for panva package release workflows
+
+inputs:
+  operation:
+    description: preflight, validate, verify-tag, stage, wait, integrate, or github-release
+    required: true
+  tarball:
+    description: Package tarball to validate
+    required: false
+  manifest_directory:
+    description: Directory containing the source package.json
+    required: false
+    default: .
+  require_tag:
+    description: Require v<version> to be the triggering ref
+    required: false
+    default: "true"
+  cleanup_paths:
+    description: JSON array of release-only paths to remove from main
+    required: false
+    default: "[]"
+  maintenance_branch:
+    description: Whether to update the v<major>.x branch
+    required: false
+    default: "true"
+  publish_jsr:
+    description: Whether this release also publishes jsr.json to JSR
+    required: false
+    default: "false"
+  github_release:
+    description: Whether this release creates a GitHub Release
+    required: false
+    default: "true"
+  main_branch:
+    description: Branch receiving the tagged release commit
+    required: false
+    default: main
+  asset_directory:
+    description: Directory containing the package tarball release asset
+    required: false
+  changelog_path:
+    description: Changelog whose matching version section becomes the release notes
+    required: false
+    default: CHANGELOG.md
+
+runs:
+  using: node24
+  main: index.cjs
