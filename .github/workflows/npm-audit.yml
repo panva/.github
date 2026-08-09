@@ -17,9 +17,8 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: lts/iron # 20
+          node-version: lts/*
           cache: 'npm'
-          check-latest: true
       - run: npm clean-install
       - run: npm upgrade
       - run: npm audit --production
