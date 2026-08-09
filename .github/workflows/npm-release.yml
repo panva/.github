@@ -277,7 +277,9 @@ jobs:
           maintenance_branch: ${{ inputs.maintenance_branch }}
 
   github:
-    if: ${{ inputs.tagged_release && inputs.github_release }}
+    if: >-
+      ${{ !cancelled() && inputs.tagged_release && inputs.github_release &&
+          needs.integrate.result == 'success' }}
     needs:
       - integrate
     runs-on: ubuntu-latest
