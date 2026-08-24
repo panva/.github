@@ -3,7 +3,7 @@ description: Shared implementation details for panva package release workflows
 
 inputs:
   operation:
-    description: preflight, validate, verify-tag, stage, wait, integrate, or github-release
+    description: preflight, validate, verify-tag, stage, wait, integrate, github-draft, or github-release
     required: true
   tarball:
     description: Package tarball to validate

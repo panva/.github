@@ -458,13 +458,66 @@ function publishedAssetMatches(tag, asset) {
   }
 }
 
-function githubRelease() {
-  const pkg = verifyRemoteTag();
-  const tag = process.env.GITHUB_REF_NAME;
+function viewRelease(tag) {
+  const viewed = gh(["release", "view", tag, "--json", "assets,isDraft"], {
+    allowFailure: true,
+    capture: true,
+    encoding: "utf8",
+  });
+  return viewed.status === 0 ? JSON.parse(viewed.stdout) : undefined;
+}
+
+function releaseNotes(pkg) {
   const changelog = path.resolve(
     workspace,
     input("changelog_path") || "CHANGELOG.md",
   );
+  const notes = extractReleaseNotes(
+    readFileSync(changelog, "utf8"),
+    pkg.version,
+  );
+  const notesPath = path.join(tmpdir(), `release-notes-${process.pid}.md`);
+  writeFileSync(notesPath, notes);
+  return notesPath;
+}
+
+function createDraft(tag, notesPath) {
+  gh([
+    "release",
+    "create",
+    tag,
+    "--draft",
+    "--verify-tag",
+    "-F",
+    notesPath,
+    "--title",
+    tag,
+  ]);
+}
+
+function githubDraft() {
+  const pkg = verifyRemoteTag();
+  const tag = process.env.GITHUB_REF_NAME;
+  const notesPath = releaseNotes(pkg);
+
+  try {
+    const release = viewRelease(tag);
+    if (release === undefined) {
+      createDraft(tag, notesPath);
+      console.log(`created draft ${tag}`);
+    } else if (release.isDraft) {
+      console.log(`${tag} is already a draft`);
+    } else {
+      console.log(`${tag} is already published`);
+    }
+  } finally {
+    rmSync(notesPath, { force: true });
+  }
+}
+
+function githubRelease() {
+  const pkg = verifyRemoteTag();
+  const tag = process.env.GITHUB_REF_NAME;
   const assetDirectory = path.resolve(workspace, input("asset_directory"));
   const tarballs = readdirSync(assetDirectory)
     .filter((entry) => entry.endsWith(".tgz"))
@@ -479,23 +532,10 @@ function githubRelease() {
   }
   const assets = [tarball, bundle];
 
-  const notes = extractReleaseNotes(
-    readFileSync(changelog, "utf8"),
-    pkg.version,
-  );
-  const notesPath = path.join(tmpdir(), `release-notes-${process.pid}.md`);
-  writeFileSync(notesPath, notes);
+  const notesPath = releaseNotes(pkg);
 
   try {
-    let release;
-    const viewed = gh(["release", "view", tag, "--json", "assets,isDraft"], {
-      allowFailure: true,
-      capture: true,
-      encoding: "utf8",
-    });
-    if (viewed.status === 0) {
-      release = JSON.parse(viewed.stdout);
-    }
+    const release = viewRelease(tag);
 
     if (release !== undefined && !release.isDraft) {
       for (const asset of assets) {
@@ -515,17 +555,7 @@ function githubRelease() {
     }
 
     if (release === undefined) {
-      gh([
-        "release",
-        "create",
-        tag,
-        "--draft",
-        "--verify-tag",
-        "-F",
-        notesPath,
-        "--title",
-        tag,
-      ]);
+      createDraft(tag, notesPath);
     }
     gh(["release", "upload", tag, ...assets, "--clobber"]);
     for (const asset of assets) {
@@ -558,6 +588,7 @@ const operations = {
   stage: stagePackage,
   wait: waitForNpm,
   integrate,
+  "github-draft": githubDraft,
   "github-release": githubRelease,
 };
 

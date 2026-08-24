@@ -310,6 +310,19 @@ jobs:
             exit 1
           fi
           echo "tarball=${tarballs[0]}" >> "$GITHUB_OUTPUT"
+      - name: Checkout release implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: node_modules/.panva-release
+      - name: Ensure draft GitHub Release
+        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        with:
+          operation: github-draft
+          changelog_path: ${{ inputs.changelog_path }}
       - name: Reuse published attestation bundle
         id: release
         env:
@@ -336,13 +349,7 @@ jobs:
           ATTESTATION_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
           PACKAGE_TARBALL: ${{ steps.package.outputs.tarball }}
         run: cp -- "$ATTESTATION_BUNDLE" "$PACKAGE_TARBALL.sigstore.json"
-      - name: Checkout release implementation
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ job.workflow_repository }}
-          ref: ${{ job.workflow_sha }}
-          path: node_modules/.panva-release
-      - name: Create GitHub Release
+      - name: Publish GitHub Release
         uses: ./node_modules/.panva-release/.github/actions/npm-release
         env:
           GH_TOKEN: ${{ github.token }}
