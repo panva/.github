@@ -466,12 +466,18 @@ function githubRelease() {
     input("changelog_path") || "CHANGELOG.md",
   );
   const assetDirectory = path.resolve(workspace, input("asset_directory"));
-  const assets = readdirSync(assetDirectory)
+  const tarballs = readdirSync(assetDirectory)
     .filter((entry) => entry.endsWith(".tgz"))
     .map((entry) => path.join(assetDirectory, entry));
-  if (assets.length !== 1) {
-    throw new Error(`expected one package tarball, found ${assets.length}`);
+  if (tarballs.length !== 1) {
+    throw new Error(`expected one package tarball, found ${tarballs.length}`);
   }
+  const tarball = tarballs[0];
+  const bundle = `${tarball}.sigstore.json`;
+  if (!existsSync(bundle)) {
+    throw new Error(`expected attestation bundle ${path.basename(bundle)}`);
+  }
+  const assets = [tarball, bundle];
 
   const notes = extractReleaseNotes(
     readFileSync(changelog, "utf8"),
@@ -492,18 +498,19 @@ function githubRelease() {
     }
 
     if (release !== undefined && !release.isDraft) {
-      const asset = assets[0];
-      if (!release.assets.some(({ name }) => name === path.basename(asset))) {
-        throw new Error(
-          `${tag} is already published but is missing its package artifact`,
-        );
+      for (const asset of assets) {
+        if (!release.assets.some(({ name }) => name === path.basename(asset))) {
+          throw new Error(
+            `${tag} is already published but is missing ${path.basename(asset)}`,
+          );
+        }
+        if (!publishedAssetMatches(tag, asset)) {
+          throw new Error(
+            `${tag} is already published with a different ${path.basename(asset)}`,
+          );
+        }
       }
-      if (!publishedAssetMatches(tag, asset)) {
-        throw new Error(
-          `${tag} is already published with a different package artifact`,
-        );
-      }
-      console.log(`${tag} is already published with its package artifact`);
+      console.log(`${tag} is already published with its release artifacts`);
       return;
     }
 
@@ -521,6 +528,11 @@ function githubRelease() {
       ]);
     }
     gh(["release", "upload", tag, ...assets, "--clobber"]);
+    for (const asset of assets) {
+      if (!publishedAssetMatches(tag, asset)) {
+        throw new Error(`${tag} draft has a different ${path.basename(asset)}`);
+      }
+    }
     gh([
       "release",
       "edit",
