@@ -66,15 +66,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: true # Required for remote tag verification.
           fetch-depth: 0
-      - name: Checkout release implementation
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ job.workflow_repository }}
-          ref: ${{ job.workflow_sha }}
-          path: node_modules/.panva-release
       - name: Validate release configuration
-        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        uses: $/.github/actions/npm-release
         with:
           operation: preflight
           manifest_directory: ${{ inputs.manifest_directory }}
@@ -95,6 +90,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Setup node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -124,14 +120,8 @@ jobs:
           ARTIFACT_CHECK_COMMAND: ${{ inputs.artifact_check_command }}
           PACKAGE_TARBALL: ${{ steps.pack.outputs.tarball }}
         run: bash -eo pipefail -c "$ARTIFACT_CHECK_COMMAND"
-      - name: Checkout release implementation
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ job.workflow_repository }}
-          ref: ${{ job.workflow_sha }}
-          path: node_modules/.panva-release
       - name: Validate exact package artifact
-        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        uses: $/.github/actions/npm-release
         with:
           operation: validate
           tarball: ${{ steps.pack.outputs.tarball }}
@@ -156,15 +146,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: true # Required for remote tag verification.
           fetch-depth: 0
-      - name: Checkout release implementation
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ job.workflow_repository }}
-          ref: ${{ job.workflow_sha }}
-          path: node_modules/.panva-release
       - name: Verify release tag
-        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        uses: $/.github/actions/npm-release
         with:
           operation: verify-tag
           manifest_directory: ${{ inputs.manifest_directory }}
@@ -190,7 +175,7 @@ jobs:
           fi
           echo "tarball=${tarballs[0]}" >> "$GITHUB_OUTPUT"
       - name: Stage exact package artifact
-        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        uses: $/.github/actions/npm-release
         with:
           operation: stage
           tarball: ${{ steps.package.outputs.tarball }}
@@ -207,14 +192,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Checkout release implementation
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: ${{ job.workflow_repository }}
-          ref: ${{ job.workflow_sha }}
-          path: node_modules/.panva-release
+          persist-credentials: false
       - name: Wait for npm availability
-        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        uses: $/.github/actions/npm-release
         with:
           operation: wait
           manifest_directory: ${{ inputs.manifest_directory }}
@@ -232,15 +213,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: true # Required for remote tag verification.
           fetch-depth: 0
-      - name: Checkout release implementation
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ job.workflow_repository }}
-          ref: ${{ job.workflow_sha }}
-          path: node_modules/.panva-release
       - name: Verify release tag
-        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        uses: $/.github/actions/npm-release
         with:
           operation: verify-tag
           manifest_directory: ${{ inputs.manifest_directory }}
@@ -261,15 +237,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: true # Required for remote tag verification and branch pushes.
           fetch-depth: 0
-      - name: Checkout release implementation
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ job.workflow_repository }}
-          ref: ${{ job.workflow_sha }}
-          path: node_modules/.panva-release
       - name: Integrate release branches
-        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        uses: $/.github/actions/npm-release
         with:
           operation: integrate
           cleanup_paths: ${{ inputs.cleanup_paths }}
@@ -293,6 +264,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: true # Required for remote tag verification.
           fetch-depth: 0
       - name: Download package artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -309,14 +281,8 @@ jobs:
             exit 1
           fi
           echo "tarball=${tarballs[0]}" >> "$GITHUB_OUTPUT"
-      - name: Checkout release implementation
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ job.workflow_repository }}
-          ref: ${{ job.workflow_sha }}
-          path: node_modules/.panva-release
       - name: Ensure draft GitHub Release
-        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        uses: $/.github/actions/npm-release
         env:
           GH_TOKEN: ${{ github.token }}
         with:
@@ -349,7 +315,7 @@ jobs:
           PACKAGE_TARBALL: ${{ steps.package.outputs.tarball }}
         run: cp -- "$ATTESTATION_BUNDLE" "$PACKAGE_TARBALL.sigstore.json"
       - name: Publish GitHub Release
-        uses: ./node_modules/.panva-release/.github/actions/npm-release
+        uses: $/.github/actions/npm-release
         env:
           GH_TOKEN: ${{ github.token }}
         with:
