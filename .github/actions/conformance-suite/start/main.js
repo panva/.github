@@ -22,7 +22,7 @@ await run('curl', [
 
 await run('docker', [...composeArgs, 'up', '-d', '--pull', 'missing']);
 
-for (let attempt = 1; attempt <= 10; attempt += 1) {
+for (let attempt = 1; attempt <= 60; attempt += 1) {
   const ready = await run(
     'curl',
     ['-skfail', `${suiteBaseUrl}/api/runner/available`],
