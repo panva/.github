@@ -2,8 +2,11 @@ version: 2
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
+    # Leave time to merge and clear cooldown before consumers run on the 1st.
     schedule:
-      interval: "monthly"
+      interval: "cron"
+      cronjob: "0 9 21 * *"
+      timezone: "Europe/Prague"
     groups:
       actions:
         patterns:
