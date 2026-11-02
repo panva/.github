@@ -33,14 +33,8 @@ runs:
       shell: bash
       run: docker load --input "${{ runner.temp }}/conformance-suite-images/images.tar"
 
-    - name: Link start action
-      shell: bash
-      env:
-        ACTION_PATH: ${{ github.action_path }}
-      run: ln -sfn "$ACTION_PATH/start" .conformance-suite-start-action
-
     - name: Start Conformance Suite
-      uses: ./.conformance-suite-start-action
+      uses: $/.github/actions/conformance-suite/start
       with:
         version: ${{ steps.version.outputs.version }}
 
