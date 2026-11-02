@@ -1,0 +1,48 @@
+name: Tag shared actions and workflows
+
+permissions: {}
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: version-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    if: github.repository == 'panva/.github' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true # Push the new version tag.
+      - name: Create next version tag
+        shell: bash
+        run: |
+          pattern='^v[1-9][0-9]*$'
+          while IFS= read -r tag; do
+            if [[ "$tag" =~ $pattern ]]; then
+              echo "HEAD is already tagged $tag"
+              exit 0
+            fi
+          done < <(git tag --points-at HEAD)
+
+          latest=$(git tag --list --sort=-version:refname |
+            awk -v pattern="$pattern" '$0 ~ pattern && !found { print; found = 1 }')
+          if [[ -z "$latest" ]]; then
+            next=v1
+          else
+            next="v$((${latest#v} + 1))"
+          fi
+
+          git tag "$next"
+          git push origin "refs/tags/$next"
+          echo "Created $next"
